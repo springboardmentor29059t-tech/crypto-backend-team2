@@ -31,7 +31,6 @@ public class ExchangeController {
 
     @Autowired
     private EncryptionUtils encryptionUtils;
-
     
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -48,7 +47,7 @@ public class ExchangeController {
         String apiSecret = request.get("apiSecret");
         String label = request.get("label");
 
-        if (apiKeyRepository.existsByKey(apiKey)) {
+        if (apiKeyRepository.existsByApiKey(apiKey)) {
             return ResponseEntity.badRequest().body("Error: This API Key is already added!");
         }
 
@@ -63,8 +62,8 @@ public class ExchangeController {
         ApiKey newKey = new ApiKey();
         newKey.setUser(user);
         newKey.setExchange(exchange);
-        newKey.setKey(apiKey);
-        newKey.setSecret(encryptionUtils.encrypt(apiSecret)); 
+        newKey.setApiKey(apiKey);
+        newKey.setApiSecret(encryptionUtils.encrypt(apiSecret)); 
         newKey.setLabel(label);
         
         apiKeyRepository.save(newKey);
@@ -79,7 +78,7 @@ public class ExchangeController {
 
         List<Map<String, Object>> safeKeys = keys.stream().map(key -> {
         
-            String rawKey = key.getKey();
+            String rawKey = key.getApiKey();
             String maskedKey = (rawKey != null && rawKey.length() > 4) 
                 ? rawKey.substring(0, 4) + "..." 
                 : rawKey; 

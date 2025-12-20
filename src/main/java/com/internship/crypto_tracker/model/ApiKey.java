@@ -21,10 +21,10 @@ public class ApiKey {
     private Exchange exchange;
 
     @Column(name = "api_key", nullable = false)
-    private String key;
+    private String apiKey;
 
     @Column(name = "api_secret", nullable = false)
-    private String secret;
+    private String apiSecret;
 
     private String label;
 
