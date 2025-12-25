@@ -60,7 +60,9 @@ public class PortfolioController {
             List<Map<String, Object>> balances = binanceAccountService.getAccountDetails(binanceKey.getApiKey(), decryptedSecret);
             binanceAccountService.saveHoldingsForUser(userId, balances);
 
-            return ResponseEntity.ok("Portfolio updated successfully for " + user.getName());
+            binanceAccountService.syncTradesForUser(userId, binanceKey.getApiKey(), decryptedSecret, "BTCUSDT");
+
+            return ResponseEntity.ok("Portfolio & Trades updated successfully for " + user.getName());
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
@@ -144,6 +146,39 @@ public class PortfolioController {
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error deleting holding: " + e.getMessage());
+        }
+    }
+
+    //Testing purpose 
+    @PostMapping("/trade/execute")
+    public ResponseEntity<?> executeTestTrade(@RequestParam String symbol, 
+                                              @RequestParam String side, 
+                                              @RequestParam String quantity) {
+        try {
+            User user = getCurrentUser();
+            
+            
+            ApiKey binanceKey = apiKeyRepository.findByUserIdAndExchangeName(user.getId(), "Binance")
+                    .orElseThrow(() -> new RuntimeException("No Binance API Keys found."));
+
+            String decryptedSecret = encryptionUtils.decrypt(binanceKey.getApiSecret());
+
+            
+            String result = binanceAccountService.placeTrade(
+                binanceKey.getApiKey(), 
+                decryptedSecret, 
+                symbol,     
+                side,      
+                quantity    
+            );
+
+            
+            binanceAccountService.syncTradesForUser(user.getId(), binanceKey.getApiKey(), decryptedSecret, symbol);
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 }
