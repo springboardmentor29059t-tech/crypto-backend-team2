@@ -7,6 +7,7 @@ import com.internship.crypto_tracker.repository.ApiKeyRepository;
 import com.internship.crypto_tracker.repository.HoldingRepository;
 import com.internship.crypto_tracker.repository.UserRepository;
 import com.internship.crypto_tracker.service.BinanceAccountService;
+import com.internship.crypto_tracker.service.PortfolioService;
 import com.internship.crypto_tracker.util.EncryptionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,9 @@ public class PortfolioController {
 
     @Autowired
     private EncryptionUtils encryptionUtils;
+
+    @Autowired
+    private PortfolioService portfolioService;
 
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -147,6 +151,13 @@ public class PortfolioController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error deleting holding: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<List<com.internship.crypto_tracker.dto.PortfolioAssetDTO>> getDashboard() {
+        User user = getCurrentUser();
+        List<com.internship.crypto_tracker.dto.PortfolioAssetDTO> data = portfolioService.getPortfolioSummary(user.getId());
+        return ResponseEntity.ok(data);
     }
 
     //Testing purpose 
