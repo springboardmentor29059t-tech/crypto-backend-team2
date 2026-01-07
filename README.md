@@ -3,7 +3,7 @@
 ## 📌 Project Overview
 A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis**. This application allows users to aggregate their crypto holdings from exchanges (like Binance), track real-time portfolio value, view historical performance, and analyze risk.
 
-**Current Progress:** Milestone 3 (Week 5) Completed.
+**Current Progress:** Milestone 3 (Week 6) Completed.
 
 ---
 
@@ -12,12 +12,12 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 * **Framework:** Spring Boot 3.x
 * **Database:** MySQL
 * **Security:** AES-256 Encryption (for API Keys)
-* **External APIs:** Binance API (Testnet), CoinGecko API
+* **External APIs:** Binance API (Testnet), CoinGecko API, CryptoScamDB (simulated)
 * **Tools:** Maven, Lombok, Postman
 
 ---
 
-## 📅 Features Implemented (Week 1 - Week 5)
+## 📅 Features Implemented (Week 1 - Week 6)
 
 ### ✅ Milestone 1: Auth & Security (Weeks 1-2)
 * **User Authentication:** Secure Signup and Login functionality.
@@ -30,13 +30,12 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 * **Cost Basis Calculation:** Smart algorithm to calculate the "Average Buy Price" for accurate P&L, handling symbol matching (e.g., `BTCUSDT` trades -> `BTC` holdings).
 * **Testnet Trading Engine:** Built a custom "Trade Execution" module to place Buy/Sell orders on the Binance Testnet directly via API.
 
-### ✅ Milestone 3: Pricing & Automation (Week 5)
+### ✅ Milestone 3: Pricing, Automation & Risk (Weeks 5-6)
 * **Live Pricing:** Integrated **CoinGecko API** to fetch real-time USD prices.
 * **Automated Scheduler:** A Cron Job runs every **5 minutes** to capture price snapshots automatically.
-* **Portfolio Dashboard:** specific endpoint that combines Holdings + Live Prices to calculate:
-    * Total Portfolio Value ($)
-    * Profit & Loss ($)
-* **Historical Data:** API to serve price history for generating Line Charts on the frontend.
+* **Portfolio Dashboard:** specific endpoint that combines Holdings + Live Prices to calculate Total Value and P&L.
+* **Risk Analysis Engine:** Automatically checks the user's portfolio against a blacklist of known scam tokens (Rug Pulls, Honeypots).
+* **Scam Data Sync:** Service to download known malicious contract addresses from external sources.
 
 ---
 
@@ -70,7 +69,15 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 | `POST` | `/api/prices/refresh` | Manually trigger a price update from CoinGecko. |
 | `GET` | `/api/prices/history/{symbol}` | Returns historical price data for charts (e.g., `/api/prices/history/BTC`). |
 
-### 5️⃣ Developer Utilities (Testnet Only)
+### 5️⃣ Risk & Security (New!)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/risk/analyze` | **Trigger Scan.** Checks the authenticated user's portfolio against the blacklist. |
+| `GET` | `/api/risk/alerts` | **View Alerts.** Returns a list of active security warnings (Rug Pulls, Honeypots). |
+| `POST` | `/api/risk/blacklist/add` | **Dev Tool.** Manually add a token to the global blacklist. |
+| `POST` | `/api/risk/blacklist/sync` | **Dev Tool.** Force sync scam tokens from external GitHub source. |
+
+### 6️⃣ Developer Utilities (Testnet Only)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/portfolio/trade/execute` | Executes a **Real Order** on Binance Testnet. Params: `symbol`, `side`, `quantity`. |
@@ -81,9 +88,11 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 The application uses a relational MySQL database with the following key tables:
 * `users`: Stores user credentials.
 * `api_keys`: Stores encrypted exchange credentials.
-* `holdings`: Stores the current quantity of each asset (e.g., 0.5 BTC).
+* `holdings`: Stores the current quantity of each asset.
 * `trades`: Stores the full history of buy/sell orders.
 * `price_snapshots`: Stores historical price data for charting.
+* `scam_tokens`: Stores a blacklist of known malicious contract addresses.
+* `risk_alerts`: Stores specific warnings generated for the user's portfolio.
 
 ---
 
@@ -94,6 +103,7 @@ The application uses a relational MySQL database with the following key tables:
     spring.datasource.url=jdbc:mysql://localhost:3306/crypto_tracker
     spring.datasource.username=YOUR_USER
     spring.datasource.password=YOUR_PASSWORD
+    app.encryption.key=Your16CharKey123
     ```
 3.  **Run the Application:**
     * Use VS Code "Run Java" or `mvn spring-boot:run`.
@@ -101,6 +111,6 @@ The application uses a relational MySQL database with the following key tables:
 
 ---
 
-## 🔮 Coming Next (Milestone 3, Week 6)
-* **Risk Analysis Module:** Integration with Etherscan/CryptoScamDB to flag risky contracts.
-* **Scam Alerts:** Storing alerts for "Rug Pulls" and suspicious tokens.
+## 🔮 Coming Next (Milestone 4, Weeks 7-8)
+* **Realized Profit Calculation:** Logic to track profits from sold assets (FIFO method).
+* **Tax Reports:** Exportable CSV reports for tax purposes.

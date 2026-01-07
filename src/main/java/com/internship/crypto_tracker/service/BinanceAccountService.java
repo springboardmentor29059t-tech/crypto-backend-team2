@@ -102,8 +102,11 @@ public class BinanceAccountService {
                     return exchangeRepository.save(newEx);
                 });
         
-        List<Holding> oldHoldings = holdingRepository.findByUserId(userId);
-        holdingRepository.deleteAll(oldHoldings);
+        List<Holding> existingBinanceHoldings = holdingRepository.findByUserId(userId).stream()
+                .filter(h -> h.getExchange() != null && "Binance".equals(h.getExchange().getName()))
+                .collect(Collectors.toList());
+        
+        holdingRepository.deleteAll(existingBinanceHoldings);
 
         List<Holding> newHoldings = new ArrayList<>();
         
