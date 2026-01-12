@@ -31,6 +31,9 @@ public class RiskAnalysisService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
    
     @Scheduled(cron = "0 0 * * * *") 
     public void scheduleRiskAnalysis() {
@@ -72,5 +75,7 @@ public class RiskAnalysisService {
 
         riskAlertRepository.save(alert);
         System.out.println("⚠️ RISK DETECTED: Created alert for " + symbol);
+
+        notificationService.sendRiskNotification(user, alert);
     }
 }
