@@ -10,7 +10,7 @@ public class ScamToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- FIX 1: Map camelCase fields to snake_case DB columns ---
+   
     @Column(name = "contract_address")
     private String contractAddress;
 
@@ -21,7 +21,7 @@ public class ScamToken {
 
     private String source;
 
-    // --- FIX 2: Use LocalDateTime for TIMESTAMP columns ---
+   
     @Column(name = "last_seen")
     private LocalDateTime lastSeen;
 
