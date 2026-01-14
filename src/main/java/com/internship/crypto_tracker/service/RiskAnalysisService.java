@@ -1,5 +1,13 @@
 package com.internship.crypto_tracker.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
 import com.internship.crypto_tracker.model.Holding;
 import com.internship.crypto_tracker.model.RiskAlert;
 import com.internship.crypto_tracker.model.ScamToken;
@@ -8,13 +16,6 @@ import com.internship.crypto_tracker.repository.HoldingRepository;
 import com.internship.crypto_tracker.repository.RiskAlertRepository;
 import com.internship.crypto_tracker.repository.ScamTokenRepository;
 import com.internship.crypto_tracker.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.scheduling.annotation.Scheduled;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RiskAnalysisService {
@@ -45,14 +46,12 @@ public class RiskAnalysisService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        // 1. Get all assets the user owns
+
         List<Holding> userHoldings = holdingRepository.findByUserId(userId);
 
         for (Holding holding : userHoldings) {
             String assetSymbol = holding.getAssetSymbol();
 
-            // 2. Check if this asset is in our Blacklist
-            // (For MVP, we match by Symbol. In production, we'd use Contract Address)
             Optional<ScamToken> scamMatch = scamTokenRepository.findByContractAddress(assetSymbol);
 
             if (scamMatch.isPresent()) {
@@ -64,7 +63,6 @@ public class RiskAnalysisService {
     }
 
     private void createRiskAlert(User user, String symbol, ScamToken scam) {
-        // Avoid duplicate alerts (Optional: check if alert already exists today)
         
         RiskAlert alert = new RiskAlert();
         alert.setUser(user);

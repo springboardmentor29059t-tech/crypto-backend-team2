@@ -1,25 +1,32 @@
 package com.internship.crypto_tracker.service;
 
-import com.internship.crypto_tracker.model.PriceSnapshot;
-import com.internship.crypto_tracker.repository.PriceSnapshotRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference; 
+import org.springframework.http.HttpMethod; 
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClientException;
+
+import com.internship.crypto_tracker.model.PriceSnapshot;
+import com.internship.crypto_tracker.repository.PriceSnapshotRepository;
+
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class CoinGeckoService {
 
-    // CoinGecko Free API Endpoint
-    private static final String COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price?ids=%s&vs_currencies=usd&include_market_cap=true";
+    private static final String COINGECKO_BATCH_URL = "https://api.coingecko.com/api/v3/simple/price?ids=%s&vs_currencies=usd";
+    private static final String COINGECKO_LIST_URL = "https://api.coingecko.com/api/v3/coins/list";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -27,67 +34,112 @@ public class CoinGeckoService {
     @Autowired
     private PriceSnapshotRepository priceSnapshotRepository;
 
-    @Scheduled(cron = "0 */5 * * * *")
-    public void fetchAndSavePrices() {
-        // 1. Define the coins we want to track (CoinGecko IDs)
-        // Note: CoinGecko uses IDs like 'bitcoin', not symbols like 'BTC'
-        List<String> coinIds = List.of("bitcoin", "ethereum", "binancecoin", "solana", "cardano");
-        
-        String idsParam = String.join(",", coinIds);
-        String finalUrl = String.format(COINGECKO_API_URL, idsParam);
+   
+    private final Map<String, String> symbolToIdMap = new ConcurrentHashMap<>();
+
+   
+   @PostConstruct
+    public void loadCoinMappings() {
+        System.out.println("⏳ Fetching coin list from CoinGecko to build dynamic mappings...");
+        try {
+            ResponseEntity<List<Map<String, String>>> response = restTemplate.exchange(
+                COINGECKO_LIST_URL,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Map<String, String>>>() {}
+            );
+            List<Map<String, String>> allCoins = response.getBody();
+
+            if (allCoins != null) {
+                for (Map<String, String> coin : allCoins) {
+                    String symbol = coin.get("symbol");
+                    String id = coin.get("id");
+
+                    if (symbol != null && id != null) {
+                        symbolToIdMap.putIfAbsent(symbol.toUpperCase(), id);
+                    }
+                }
+                System.out.println("✅ Loaded " + symbolToIdMap.size() + " coin mappings dynamically!");
+            }
+        } catch (RestClientException e) {
+            System.err.println("❌ Failed to load coin list: " + e.getMessage());
+            symbolToIdMap.put("BTC", "bitcoin");
+            symbolToIdMap.put("ETH", "ethereum");
+            symbolToIdMap.put("USDT", "tether");
+        }
+    }
+
+    public Map<String, BigDecimal> getBatchPrices(List<String> symbols) {
+        Map<String, BigDecimal> priceMap = new HashMap<>();
+        if (symbols == null || symbols.isEmpty()) return priceMap;
+
+        Map<String, String> idToSymbolMap = new HashMap<>();
+        Set<String> uniqueIds = new HashSet<>();
+
+        for (String symbol : symbols) {
+            String id = convertSymbolToId(symbol);
+            if (id != null) {
+                uniqueIds.add(id);
+                idToSymbolMap.put(id, symbol);
+            }
+        }
+
+        if (uniqueIds.isEmpty()) return priceMap;
 
         try {
-            // 2. Call the API
-            // Response format: { "bitcoin": { "usd": 50000.00, "usd_market_cap": 900000000 } }
+            String idsParam = String.join(",", uniqueIds);
+            String url = String.format(COINGECKO_BATCH_URL, idsParam);
+
             ResponseEntity<Map<String, Map<String, Object>>> response = restTemplate.exchange(
-                finalUrl,
+                url,
                 HttpMethod.GET,
                 null,
                 new ParameterizedTypeReference<Map<String, Map<String, Object>>>() {}
             );
-
+            
             Map<String, Map<String, Object>> body = response.getBody();
-            if (body == null) return;
 
-            // 3. Loop through results and save Snapshots
-            for (String coinId : coinIds) {
-                if (body.containsKey(coinId)) {
-                    Map<String, Object> data = body.get(coinId);
-                    
-                    // Convert raw numbers to BigDecimal safely
-                    BigDecimal price = new BigDecimal(data.get("usd").toString());
-                    BigDecimal marketCap = new BigDecimal(data.get("usd_market_cap").toString());
-
-                    // Create & Save Snapshot
-                    PriceSnapshot snapshot = new PriceSnapshot();
-                    snapshot.setAssetSymbol(convertIdToSymbol(coinId)); // Helper method
-                    snapshot.setPriceUsd(price);
-                    snapshot.setMarketCap(marketCap);
-                    snapshot.setSource("CoinGecko");
-                    snapshot.setCapturedAt(LocalDateTime.now());
-
-                    priceSnapshotRepository.save(snapshot);
-                    System.out.println("✅ Saved price for " + coinId + ": $" + price);
+            if (body != null) {
+                for (String id : body.keySet()) {
+                    Object priceObj = body.get(id).get("usd");
+                    if (priceObj != null) {
+                        BigDecimal price = new BigDecimal(priceObj.toString());
+                        for (Map.Entry<String, String> entry : idToSymbolMap.entrySet()) {
+                            if (entry.getKey().equals(id)) {
+                                priceMap.put(entry.getValue(), price);
+                            }
+                        }
+                    }
                 }
             }
-        } catch (Exception e) {
-            System.err.println("❌ Failed to fetch prices: " + e.getMessage());
+        } catch (RestClientException e) {
+            System.err.println("❌ Batch Price Fetch Failed: " + e.getMessage());
         }
+        return priceMap;
     }
-
     public List<PriceSnapshot> getHistoryForCoin(String symbol) {
-        
         return priceSnapshotRepository.findByAssetSymbolOrderByCapturedAtAsc(symbol);
     }
 
-    private String convertIdToSymbol(String id) {
-        switch (id) {
-            case "bitcoin": return "BTC";
-            case "ethereum": return "ETH";
-            case "binancecoin": return "BNB";
-            case "solana": return "SOL";
-            case "cardano": return "ADA";
-            default: return id.toUpperCase();
-        }
+    private String convertSymbolToId(String symbol) {
+        if (symbol == null) return null;
+        
+        return symbolToIdMap.get(symbol.toUpperCase());
+    }
+
+    public BigDecimal getSimplePrice(String symbol) {
+        Map<String, BigDecimal> result = getBatchPrices(List.of(symbol));
+        return result.getOrDefault(symbol, BigDecimal.ZERO);
+    }
+
+    
+    @Scheduled(cron = "0 0 0 * * *")
+    public void refreshMappings() {
+        loadCoinMappings();
+    }
+    
+    @Scheduled(cron = "0 */5 * * * *")
+    public void fetchAndSavePrices() {
+       
     }
 }

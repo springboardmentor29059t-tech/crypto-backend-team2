@@ -1,10 +1,13 @@
 package com.internship.crypto_tracker.util;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import java.security.GeneralSecurityException;
+import java.util.Base64;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
-import java.util.Base64;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
 public class EncryptionUtils {
@@ -18,7 +21,7 @@ public class EncryptionUtils {
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
             return Base64.getEncoder().encodeToString(cipher.doFinal(data.getBytes()));
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             throw new RuntimeException("Error encrypting data", e);
         }
     }
@@ -29,7 +32,7 @@ public class EncryptionUtils {
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
             return new String(cipher.doFinal(Base64.getDecoder().decode(encryptedData)));
-        } catch (Exception e) {
+        } catch (GeneralSecurityException | IllegalArgumentException e) {
             throw new RuntimeException("Error decrypting data", e);
         }
     }

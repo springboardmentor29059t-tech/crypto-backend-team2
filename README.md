@@ -3,7 +3,7 @@
 ## 📌 Project Overview
 A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis**. This application allows users to aggregate their crypto holdings from exchanges (like Binance), track real-time portfolio value, view historical performance, and analyze risk.
 
-**Current Progress:** Milestone 3 (Week 6) Completed.
+**Current Progress:** ✅ Milestone 4 (Week 7) Completed.
 
 ---
 
@@ -17,7 +17,7 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 
 ---
 
-## 📅 Features Implemented (Week 1 - Week 6)
+## 📅 Features Implemented (Week 1 - Week 7)
 
 ### ✅ Milestone 1: Auth & Security (Weeks 1-2)
 * **User Authentication:** Secure Signup and Login functionality.
@@ -33,9 +33,14 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 ### ✅ Milestone 3: Pricing, Automation & Risk (Weeks 5-6)
 * **Live Pricing:** Integrated **CoinGecko API** to fetch real-time USD prices.
 * **Automated Scheduler:** A Cron Job runs every **5 minutes** to capture price snapshots automatically.
-* **Portfolio Dashboard:** specific endpoint that combines Holdings + Live Prices to calculate Total Value and P&L.
+* **Portfolio Dashboard:** Specific endpoint that combines Holdings + Live Prices to calculate Total Value and P&L.
 * **Risk Analysis Engine:** Automatically checks the user's portfolio against a blacklist of known scam tokens (Rug Pulls, Honeypots).
 * **Scam Data Sync:** Service to download known malicious contract addresses from external sources.
+
+### ✅ Milestone 4: P&L & Reporting (Week 7)
+* **Realized Profit Calculation:** Advanced logic to calculate profits from sold assets using the **FIFO (First-In, First-Out)** method.
+* **Unrealized Gains:** Tracks the theoretical profit/loss of currently held assets.
+* **CSV Reporting:** Users can export a detailed "Tax-Ready" spreadsheet of their portfolio performance.
 
 ---
 
@@ -57,19 +62,26 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 ### 3️⃣ Portfolio & Dashboard
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/portfolio/refresh` | **Sync Trigger.** Fetches latest balances and trades from Binance. |
+| `POST` | `/api/portfolio/refresh` | **Sync Trigger.** Fetches latest balances and trades from Binance for all assets. |
 | `GET` | `/api/portfolio/dashboard` | **Main Dashboard Data.** Returns list of assets with Quantity, Current Price, Total Value, and P&L. |
 | `POST` | `/api/portfolio/manual` | **Add Manual Holding.** Manually add an asset (e.g., Hardware Wallet funds). |
 | `PUT` | `/api/portfolio/manual/{id}` | **Update Manual Holding.** Edit quantity or details of a manually added asset. |
 | `DELETE` | `/api/portfolio/manual/{id}` | **Remove Manual Holding.** Delete a manually added asset from the portfolio. |
 
-### 4️⃣ Market Data & Charts
+### 4️⃣ Reports (New!)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/reports/pnl` | **Full P&L Report.** Returns Realized and Unrealized gains for all assets. |
+| `GET` | `/api/reports/export` | **Download CSV.** Generates a downloadable file for Excel/Tax purposes. |
+| `GET` | `/api/reports/total-balance` | Returns the aggregated total USD value of the portfolio. |
+
+### 5️⃣ Market Data & Charts
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/prices/refresh` | Manually trigger a price update from CoinGecko. |
 | `GET` | `/api/prices/history/{symbol}` | Returns historical price data for charts (e.g., `/api/prices/history/BTC`). |
 
-### 5️⃣ Risk & Security (New!)
+### 6️⃣ Risk & Security
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/risk/analyze` | **Trigger Scan.** Checks the authenticated user's portfolio against the blacklist. |
@@ -77,7 +89,7 @@ A robust Spring Boot backend for a **Crypto Portfolio Tracker with Risk Analysis
 | `POST` | `/api/risk/blacklist/add` | **Dev Tool.** Manually add a token to the global blacklist. |
 | `POST` | `/api/risk/blacklist/sync` | **Dev Tool.** Force sync scam tokens from external GitHub source. |
 
-### 6️⃣ Developer Utilities (Testnet Only)
+### 7️⃣ Developer Utilities (Testnet Only)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/portfolio/trade/execute` | Executes a **Real Order** on Binance Testnet. Params: `symbol`, `side`, `quantity`. |
@@ -111,6 +123,7 @@ The application uses a relational MySQL database with the following key tables:
 
 ---
 
-## 🔮 Coming Next (Milestone 4, Weeks 7-8)
-* **Realized Profit Calculation:** Logic to track profits from sold assets (FIFO method).
-* **Tax Reports:** Exportable CSV reports for tax purposes.
+## 🔮 Coming Next (Milestone 5, Week 8)
+* **Production Deployment:** Hosting on AWS/Render.
+* **Final QA & Testing:** Edge case handling and performance tuning.
+* **Tax Hints:** Visual indicators for Long-Term vs Short-Term holdings.

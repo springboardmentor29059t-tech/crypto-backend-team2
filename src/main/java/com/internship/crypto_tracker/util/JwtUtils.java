@@ -1,16 +1,20 @@
 package com.internship.crypto_tracker.util;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
+
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtils {
 
     private static final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private int jwtExpirationMs = 86400000; 
+    private final int jwtExpirationMs = 86400000; 
     
     public String generateJwtToken(String email) {
         return Jwts.builder()

@@ -1,8 +1,11 @@
 package com.internship.crypto_tracker.util;
 
+import java.security.GeneralSecurityException;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.apache.commons.codec.binary.Hex; 
+ 
+import org.apache.commons.codec.binary.Hex;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -27,7 +30,7 @@ public class BinanceSignatureUtil {
             
             return Hex.encodeHexString(hmacBytes);
 
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             throw new RuntimeException("Failed to calculate HMAC signature", e);
         }
     }

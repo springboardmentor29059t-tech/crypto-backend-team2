@@ -1,5 +1,17 @@
 package com.internship.crypto_tracker.controller;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.internship.crypto_tracker.model.RiskAlert;
 import com.internship.crypto_tracker.model.ScamToken;
 import com.internship.crypto_tracker.model.User;
@@ -9,17 +21,9 @@ import com.internship.crypto_tracker.repository.UserRepository;
 import com.internship.crypto_tracker.service.RiskAnalysisService;
 import com.internship.crypto_tracker.service.ScamImportService;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/risk")
-public class RiskController { // Extends BaseController to get Auth User
+public class RiskController { 
 
     @Autowired
     private RiskAnalysisService riskAnalysisService;
@@ -36,11 +40,10 @@ public class RiskController { // Extends BaseController to get Auth User
     @Autowired
     private UserRepository userRepository;
 
-    // 1. DEV TOOL: Manually add a token to the blacklist
     @PostMapping("/blacklist/add")
     public ResponseEntity<?> addToBlacklist(@RequestParam String symbol, @RequestParam String riskLevel) {
         ScamToken token = new ScamToken();
-        token.setContractAddress(symbol); // Using symbol as address for MVP simplicity
+        token.setContractAddress(symbol); 
         token.setChain("ETH");
         token.setRiskLevel(ScamToken.RiskLevel.valueOf(riskLevel));
         token.setSource("Manual Entry");
@@ -50,7 +53,6 @@ public class RiskController { // Extends BaseController to get Auth User
         return ResponseEntity.ok("🚨 Added " + symbol + " to global blacklist.");
     }
 
-    // 2. TRIGGER: Check my portfolio now!
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeMyPortfolio() {
         User user = getCurrentUser();
@@ -58,7 +60,6 @@ public class RiskController { // Extends BaseController to get Auth User
         return ResponseEntity.ok("Risk analysis complete. Check alerts.");
     }
 
-    // 3. VIEW: Show me my alerts
     @GetMapping("/alerts")
     public ResponseEntity<List<RiskAlert>> getMyAlerts() {
         User user = getCurrentUser();

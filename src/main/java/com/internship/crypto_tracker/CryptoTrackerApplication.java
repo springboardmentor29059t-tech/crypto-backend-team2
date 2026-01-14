@@ -41,7 +41,6 @@ public class CryptoTrackerApplication {
             }
         } catch (Exception e) {
             System.err.println("Custom Loader: Failed to read .env file");
-            e.printStackTrace();
         }
     }
 
