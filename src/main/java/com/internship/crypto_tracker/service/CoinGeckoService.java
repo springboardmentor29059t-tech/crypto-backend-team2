@@ -1,12 +1,15 @@
 package com.internship.crypto_tracker.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference; 
@@ -17,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientException;
 
+import com.internship.crypto_tracker.model.Holding;
 import com.internship.crypto_tracker.model.PriceSnapshot;
+import com.internship.crypto_tracker.repository.HoldingRepository;
 import com.internship.crypto_tracker.repository.PriceSnapshotRepository;
 
 import jakarta.annotation.PostConstruct;
@@ -33,6 +38,9 @@ public class CoinGeckoService {
 
     @Autowired
     private PriceSnapshotRepository priceSnapshotRepository;
+
+    @Autowired
+    private HoldingRepository holdingRepository;
 
    
     private final Map<String, String> symbolToIdMap = new ConcurrentHashMap<>();
@@ -140,6 +148,42 @@ public class CoinGeckoService {
     
     @Scheduled(cron = "0 */5 * * * *")
     public void fetchAndSavePrices() {
-       
+       try {
+            List<Holding> allHoldings = holdingRepository.findAll();
+            Set<String> symbolsToTrack = allHoldings.stream()
+                    .map(Holding::getAssetSymbol)
+                    .collect(Collectors.toSet());
+
+            symbolsToTrack.add("BTC");
+            symbolsToTrack.add("ETH");
+            symbolsToTrack.add("BNB");
+            symbolsToTrack.add("SOL");
+
+            if (symbolsToTrack.isEmpty()) return;
+
+            System.out.println("🔄 Fetching prices for: " + symbolsToTrack);
+
+            Map<String, BigDecimal> prices = getBatchPrices(new ArrayList<>(symbolsToTrack));
+
+            List<PriceSnapshot> snapshots = new ArrayList<>();
+            LocalDateTime now = LocalDateTime.now();
+
+            for (Map.Entry<String, BigDecimal> entry : prices.entrySet()) {
+                PriceSnapshot snapshot = new PriceSnapshot();
+                snapshot.setAssetSymbol(entry.getKey());
+                snapshot.setPriceUsd(entry.getValue());
+                snapshot.setCapturedAt(now);
+                snapshot.setSource("CoinGecko");
+                snapshots.add(snapshot);
+            }
+
+            if (!snapshots.isEmpty()) {
+                priceSnapshotRepository.saveAll(snapshots);
+                System.out.println("Saved " + snapshots.size() + " price snapshots.");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error in scheduled price fetch: " + e.getMessage());
+        }
     }
 }

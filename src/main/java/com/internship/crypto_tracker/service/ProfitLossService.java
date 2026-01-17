@@ -1,6 +1,7 @@
 package com.internship.crypto_tracker.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +28,14 @@ public class ProfitLossService {
     @Autowired
     private CoinGeckoService coinGeckoService;
 
+    private static class PnlResult {
+        BigDecimal totalRealized = BigDecimal.ZERO;
+        BigDecimal shortTerm = BigDecimal.ZERO;
+        BigDecimal longTerm = BigDecimal.ZERO;
+    }
+
     public List<ProfitLossReportDTO> generateReport(Long userId) {
         List<ProfitLossReportDTO> reportList = new ArrayList<>();
-
         List<Holding> holdings = holdingRepository.findByUserId(userId);
 
         if (holdings.isEmpty()) {
@@ -46,18 +52,19 @@ public class ProfitLossService {
             String symbol = holding.getAssetSymbol();
             
             BigDecimal currentPrice = livePrices.getOrDefault(symbol, BigDecimal.ZERO);
-
             BigDecimal quantity = holding.getQuantity() != null ? holding.getQuantity() : BigDecimal.ZERO;
             BigDecimal avgCost = holding.getAvgCost() != null ? holding.getAvgCost() : BigDecimal.ZERO;
             
-            BigDecimal realizedProfit = calculateRealizedProfitForSymbol(userId, symbol);
+            PnlResult taxData = calculateTaxPnl(userId, symbol);
 
             ProfitLossReportDTO report = new ProfitLossReportDTO(
                 symbol,
                 quantity,
                 avgCost,
                 currentPrice,
-                realizedProfit
+                taxData.totalRealized, 
+                taxData.shortTerm,
+                taxData.longTerm
             );
 
             reportList.add(report);
@@ -66,60 +73,22 @@ public class ProfitLossService {
         return reportList;
     }
 
-    public StringBuilder generateCsvReport(Long userId) {
-        List<ProfitLossReportDTO> reports = generateReport(userId);
-        StringBuilder csvContent = new StringBuilder();
-        
-        csvContent.append("Symbol,Quantity,Average Cost,Current Price,Current Value,Unrealized P&L,Realized P&L\n");
-
-        for (ProfitLossReportDTO row : reports) {
-            csvContent.append(row.getAssetSymbol()).append(",");
-            csvContent.append(row.getQuantity()).append(",");
-            csvContent.append(row.getAverageCost()).append(",");
-            csvContent.append(row.getCurrentPrice()).append(",");
-            csvContent.append(row.getCurrentValue()).append(",");
-            csvContent.append(row.getUnrealizedProfit()).append(",");
-            csvContent.append(row.getRealizedProfit()).append("\n"); 
-        }
-        return csvContent;
-    }
-
-    public BigDecimal calculateTotalPortfolioValue(Long userId) {
-        List<ProfitLossReportDTO> reports = generateReport(userId);
-        return reports.stream()
-                .map(ProfitLossReportDTO::getCurrentValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private List<Trade> getTradesForSymbol(Long userId, String symbol) {
-        List<Trade> trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol);
-        
-        if (trades.isEmpty()) {
-            trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol + "USDT");
-        }
-        
-        if (trades.isEmpty()) {
-            trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol + "USD");
-        }
-        
-        return trades;
-    }
-
-    private BigDecimal calculateRealizedProfitForSymbol(Long userId, String symbol) {
+    private PnlResult calculateTaxPnl(Long userId, String symbol) {
+        PnlResult result = new PnlResult();
         List<Trade> trades = getTradesForSymbol(userId, symbol);
 
-        if (trades.isEmpty()) return BigDecimal.ZERO;
+        if (trades.isEmpty()) return result;
 
-        BigDecimal totalRealizedProfit = BigDecimal.ZERO;
         List<Trade> buyQueue = new ArrayList<>();
 
         for (Trade trade : trades) {
-            String side = trade.getSide() != null ? trade.getSide().toString().toUpperCase() : "";
+            String side = trade.getSide().toString().toUpperCase();
 
             if (side.equals("BUY")) {
                 Trade buyBatch = new Trade();
                 buyBatch.setPrice(trade.getPrice());
                 buyBatch.setQuantity(trade.getQuantity());
+                buyBatch.setExecutedAt(trade.getExecutedAt()); 
                 buyQueue.add(buyBatch);
 
             } else if (side.equals("SELL")) {
@@ -142,11 +111,62 @@ public class ProfitLossService {
                     BigDecimal priceDiff = sellPrice.subtract(oldestBuy.getPrice());
                     BigDecimal profitChunk = priceDiff.multiply(qtyTaken);
                     
-                    totalRealizedProfit = totalRealizedProfit.add(profitChunk);
+                    if (oldestBuy.getExecutedAt() != null && trade.getExecutedAt() != null) {
+                        long daysHeld = Duration.between(oldestBuy.getExecutedAt(), trade.getExecutedAt()).toDays();
+                        if (daysHeld > 365) {
+                            result.longTerm = result.longTerm.add(profitChunk);
+                        } else {
+                            result.shortTerm = result.shortTerm.add(profitChunk);
+                        }
+                    } else {
+                        result.shortTerm = result.shortTerm.add(profitChunk);
+                    }
+
+                    result.totalRealized = result.totalRealized.add(profitChunk);
                     qtyToSell = qtyToSell.subtract(qtyTaken);
                 }
             }
         }
-        return totalRealizedProfit;
+        return result;
+    }
+
+    private List<Trade> getTradesForSymbol(Long userId, String symbol) {
+        List<Trade> trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol);
+        
+        if (trades.isEmpty()) {
+            trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol + "USDT");
+        }
+        if (trades.isEmpty()) {
+            trades = tradeRepository.findByUserIdAndAssetSymbolOrderByExecutedAtAsc(userId, symbol + "USD");
+        }
+        
+        return trades;
+    }
+
+    public StringBuilder generateCsvReport(Long userId) {
+        List<ProfitLossReportDTO> reports = generateReport(userId);
+        StringBuilder csvContent = new StringBuilder();
+        
+        csvContent.append("Symbol,Quantity,Avg Cost,Current Price,Value,Unrealized P&L,Realized P&L,Short-Term(Tax),Long-Term(Tax)\n");
+
+        for (ProfitLossReportDTO row : reports) {
+            csvContent.append(row.getAssetSymbol()).append(",")
+                      .append(row.getQuantity()).append(",")
+                      .append(row.getAverageCost()).append(",")
+                      .append(row.getCurrentPrice()).append(",")
+                      .append(row.getCurrentValue()).append(",")
+                      .append(row.getUnrealizedProfit()).append(",")
+                      .append(row.getRealizedProfit()).append(",")
+                      .append(row.getShortTermProfit()).append(",")
+                      .append(row.getLongTermProfit()).append("\n");
+        }
+        return csvContent;
+    }
+
+    public BigDecimal calculateTotalPortfolioValue(Long userId) {
+        List<ProfitLossReportDTO> reports = generateReport(userId);
+        return reports.stream()
+                .map(ProfitLossReportDTO::getCurrentValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

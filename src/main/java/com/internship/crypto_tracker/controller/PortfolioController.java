@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.internship.crypto_tracker.model.ApiKey;
+import com.internship.crypto_tracker.model.Exchange;
 import com.internship.crypto_tracker.model.Holding;
 import com.internship.crypto_tracker.model.User;
 import com.internship.crypto_tracker.repository.ApiKeyRepository;
+import com.internship.crypto_tracker.repository.ExchangeRepository;
 import com.internship.crypto_tracker.repository.HoldingRepository;
 import com.internship.crypto_tracker.repository.UserRepository;
 import com.internship.crypto_tracker.service.BinanceAccountService;
@@ -39,6 +41,9 @@ public class PortfolioController {
 
     @Autowired
     private HoldingRepository holdingRepository;
+
+    @Autowired
+    private ExchangeRepository exchangeRepository;
 
     @Autowired
     private BinanceAccountService binanceAccountService;
@@ -62,6 +67,9 @@ public class PortfolioController {
             User user = getCurrentUser();
             Long userId = user.getId();
 
+            Exchange binanceExchange = exchangeRepository.findByName("Binance")
+                    .orElseThrow(() -> new RuntimeException("Binance Exchange not found in DB"));
+
             ApiKey binanceKey = apiKeyRepository.findByUserIdAndExchangeName(userId, "Binance")
                     .orElseThrow(() -> new RuntimeException("No Binance API Keys found."));
 
@@ -80,7 +88,7 @@ public class PortfolioController {
                 if (free.add(locked).compareTo(BigDecimal.ZERO) > 0) {
                     
                     if (!symbol.equals("USDT")) {
-                        binanceAccountService.syncTradesForUser(userId, binanceKey.getApiKey(), decryptedSecret, symbol + "USDT");
+                        binanceAccountService.syncTradesForUser(userId, binanceKey.getApiKey(), decryptedSecret, symbol + "USDT", binanceExchange);
                         syncedCount++;
                     }
                 }
@@ -204,7 +212,7 @@ public class PortfolioController {
             );
 
             
-            binanceAccountService.syncTradesForUser(user.getId(), binanceKey.getApiKey(), decryptedSecret, symbol);
+            binanceAccountService.syncTradesForUser(user.getId(), binanceKey.getApiKey(), decryptedSecret, symbol, binanceKey.getExchange());
 
             return ResponseEntity.ok(result);
 

@@ -14,17 +14,21 @@ public class ProfitLossReportDTO {
     private BigDecimal unrealizedProfit;
     private BigDecimal realizedProfit;
 
-    
+    private BigDecimal shortTermProfit;
+    private BigDecimal longTermProfit;
+
     public ProfitLossReportDTO(String assetSymbol, BigDecimal quantity, BigDecimal averageCost, 
-                            BigDecimal currentPrice, BigDecimal realizedProfit) {
+                            BigDecimal currentPrice, BigDecimal realizedProfit,
+                            BigDecimal shortTermProfit, BigDecimal longTermProfit) {
         this.assetSymbol = assetSymbol;
         this.quantity = quantity;
         this.averageCost = averageCost;
         this.currentPrice = currentPrice;
         this.realizedProfit = realizedProfit;
+        this.shortTermProfit = shortTermProfit;
+        this.longTermProfit = longTermProfit;
 
         this.currentValue = currentPrice.multiply(quantity);
-
         this.unrealizedProfit = (currentPrice.subtract(averageCost)).multiply(quantity);
     }
 }
